@@ -1,5 +1,13 @@
-# Azure_Firewall
+# Azure_Firewall :
+Azure Firewall is a cloud-native, stateful network security service offered by Microsoft Azure. It's designed to protect your Azure Virtual Network (VNet) resources by controlling both inbound and outbound traffic using defined rules. It's highly available and scalable, making it suitable for enterprise-level applications.
 
+## Why use Azure Firewall :
+- Azure Firewall lets you manage security policies centrally for all traffic entering or leaving your VNets.
+- In a Hub-and-Spoke architecture, you can place the firewall in the hub and route all traffic from spokes through it.
+- It’s fully managed—Microsoft handles updates, scaling, and high availability.
+- No need to deploy extra VMs or load balancers to maintain uptime.
+- Supports both Application Rules (FQDN filtering) and Network Rules (IP, port, protocol).
+- It can restrict traffic to only specific domains (e.g., only allow traffic to *.microsoft.com).
 
 ## Architecture Diagram :
 ![Fw](Images/firewall.png)
