@@ -64,6 +64,33 @@ resource "azurerm_windows_virtual_machine" "VM" {
   depends_on = [ azurerm_network_interface.subnet_nic]
 }
 
+resource "azurerm_route_table" "route_table" {
+  name                = "Fw-route-table"
+  resource_group_name = azurerm_resource_group.rg.name
+  location = azurerm_resource_group.rg.location
+  depends_on = [ azurerm_resource_group.rg , azurerm_subnet.subnets ]
+}
+
+resource "azurerm_route" "route_01" {
+  name                   = "To-Fw"
+  resource_group_name    = azurerm_resource_group.rg.name
+  route_table_name       = azurerm_route_table.route_table.name
+  address_prefix         = "0.0.0.0/0"  # Any
+  next_hop_type          = "VirtualAppliance"
+  next_hop_in_ip_address = "10.0.1.4"  # Azure Firewall private IP
+
+  depends_on = [
+    azurerm_route_table.route_table,
+    azurerm_firewall.firewall
+  ]
+}
+
+resource "azurerm_subnet_route_table_association" "RT-ass" {
+   subnet_id                 = azurerm_subnet.subnet.id
+   route_table_id = azurerm_route_table.route_table.id
+   depends_on = [ azurerm_subnet.subnet , azurerm_route_table.route_table ]
+}
+
 resource "azurerm_public_ip" "public_ip" {
   name = "Fw-IP"
   location            = azurerm_resource_group.rg.location
@@ -75,8 +102,8 @@ resource "azurerm_public_ip" "public_ip" {
 
 resource "azurerm_firewall_policy" "firewall_policy" {
   name                = "Firewall-policy"
-  location            = azurerm_resource_group.Hub.location
-  resource_group_name = azurerm_resource_group.Hub.name
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
   sku = "Standard"
   depends_on = [ azurerm_resource_group.rg ]
 }
