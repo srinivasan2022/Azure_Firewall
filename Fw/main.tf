@@ -41,6 +41,11 @@ resource "azurerm_network_interface" "subnet_nic" {
   depends_on = [ azurerm_virtual_network.vnet ,azurerm_subnet.subnet ]
 }
 
+output "vm_private_ip" {
+  value = azurerm_network_interface.subnet_nic.ip_configuration[0].private_ip_address
+}
+
+
 resource "azurerm_windows_virtual_machine" "VM" {
   name = "Test-VM"
   resource_group_name = azurerm_resource_group.rg.name
@@ -48,6 +53,8 @@ resource "azurerm_windows_virtual_machine" "VM" {
   size                  = "Standard_DS1_v2"
   admin_username      = "azureuser"
   admin_password      = "Password1234!"
+
+  
   network_interface_ids = [azurerm_network_interface.subnet_nic.id]
 
   os_disk {
@@ -68,7 +75,7 @@ resource "azurerm_route_table" "route_table" {
   name                = "Fw-route-table"
   resource_group_name = azurerm_resource_group.rg.name
   location = azurerm_resource_group.rg.location
-  depends_on = [ azurerm_resource_group.rg , azurerm_subnet.subnets ]
+  depends_on = [ azurerm_resource_group.rg , azurerm_subnet.subnet ]
 }
 
 resource "azurerm_route" "route_01" {
@@ -126,6 +133,7 @@ resource "azurerm_firewall" "firewall" {
                 azurerm_subnet.Firewall , azurerm_firewall_policy.firewall_policy ]
 }
 
+
 resource "azurerm_firewall_policy_rule_collection_group" "fw_policy_rule_collection" {
   name                = "app-rule-collection-group"
   firewall_policy_id  = azurerm_firewall_policy.firewall_policy.id
@@ -134,32 +142,43 @@ resource "azurerm_firewall_policy_rule_collection_group" "fw_policy_rule_collect
    nat_rule_collection {
     name     = "dnat-rule-collection"
     priority = 400
-    action   = "Allow"
+    action = "Dnat"
+
 
     rule {
       name                  = "Allow-rdp"
-      protocols             = ["Tcp"]
+      protocols             = ["TCP"]
       source_addresses      = ["*"]
-      destination_address = [azurerm_public_ip.public_ip.ip_address]
+      destination_address = azurerm_public_ip.public_ip.ip_address
       destination_ports     = ["3389"]
-      translated_address    = azurerm_windows_virtual_machine.VM.private_ip_address  # Private IP of VM
+      translated_address = azurerm_network_interface.subnet_nic.ip_configuration[0].private_ip_address
       translated_port       = "3389"
     }
-  }
-
-  network_rule_collection {
-    name     = "network-rule-collection"
-    priority = 300
-    action   = "Allow"
 
     rule {
-      name                  = "allow-IIS"
-      source_addresses      = [azurerm_windows_virtual_machine.VM.private_ip_address]  # Private IP of VM
-      destination_addresses = [azurerm_public_ip.public_ip.ip_address]
-      destination_ports     = ["80"]
-      protocols             = ["Tcp"]
-    }
+    name                  = "Allow-HTTP"
+    protocols             = ["TCP"]
+    source_addresses      = ["*"]
+    destination_address   = azurerm_public_ip.public_ip.ip_address
+    destination_ports     = ["80"]
+    translated_address    = azurerm_network_interface.subnet_nic.ip_configuration[0].private_ip_address
+    translated_port       = "80"
   }
+  }
+
+  # network_rule_collection {
+  #   name     = "network-rule-collection"
+  #   priority = 300
+  #   action   = "Allow"
+
+  #   rule {
+  #     name                  = "allow-IIS"
+  #     source_addresses      = [azurerm_network_interface.subnet_nic.ip_configuration[0].private_ip_address]  # Private IP of VM
+  #     destination_addresses = [azurerm_public_ip.public_ip.ip_address]
+  #     destination_ports     = ["80"]
+  #     protocols             = ["TCP"]
+  #   }
+  # }
 
   application_rule_collection {
     name     = "app-rule-collection"
@@ -168,14 +187,19 @@ resource "azurerm_firewall_policy_rule_collection_group" "fw_policy_rule_collect
 
     rule {
       name             = "allow-microsoft-site"
-      source_addresses = [azurerm_windows_virtual_machine.VM.private_ip_address]  # Private IP of VM
+      source_addresses = [azurerm_network_interface.subnet_nic.ip_configuration[0].private_ip_address]  # Private IP of VM
       protocols {
         type = "Https"
         port = 443
       }
-      destination_fqdn_tags  = ["www.microsoft.com"]
+      protocols {
+        type = "Http"
+        port = 80
+      }
+      destination_fqdns = ["*.microsoft.com"]
+
     }
   }
-  depends_on = [ azurerm_firewall.firewall , azurerm_public_ip.public_ip , azurerm_windows_virtual_machine.VM ]
+  depends_on = [ azurerm_firewall.firewall , azurerm_public_ip.public_ip , azurerm_network_interface.subnet_nic ]
 }
 
