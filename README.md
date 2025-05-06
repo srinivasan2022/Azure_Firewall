@@ -12,6 +12,23 @@ Azure Firewall is a cloud-native, stateful network security service offered by M
 ## Architecture Diagram :
 ![Fw](Images/firewall.png)
 
+###### Apply the Terraform configurations :
+
+Deploy the resources using Terraform,
+
+```
+cd Fw
+```
+```
+terraform init
+```
+```
+terraform plan
+```
+```
+terraform apply
+```
+
 ### Further Steps involved are (Azure Portal) :
 
 - First we have to create the Resource Group (fw-rg).
